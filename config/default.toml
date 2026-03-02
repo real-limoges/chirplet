@@ -1,0 +1,33 @@
+# Chirplet configuration — White-crowned Sparrow (nuttalli)
+
+[paths]
+db_path = "data/chirplet.sqlite"
+
+data_dir = "data"
+raw_dir = "data/raw"
+processed_dir = "data/processed"
+cache_dir = "data/cache"
+[api]
+xc_base_url = "https://xeno-canto.org/api/2/recordings"
+xc_api_key = ""                                         # or set XENOCANTO_API_KEY env var
+xc_rate_limit = 1000
+xc_request_delay = 3.6                                  # seconds between requests
+
+[species]
+target_genus = "Zonotrichia"
+target_species = "leucophrys"
+target_subspecies = ""           # "" = all subspecies; "nuttalli" for CA coastal only
+target_country = "United States" # "" = worldwide;
+
+[filtering]
+min_quality = "C"
+require_coords = true
+sound_types = ["song"]
+
+[download]
+max_concurrent = 4
+skip_existing = true
+audio_format = "mp3"
+
+[pipeline]
+log_level = "Info"
