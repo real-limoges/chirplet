@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Chirplet is a Julia package for acquiring and managing bird song recordings from xeno-canto. Currently focused on White-crowned Sparrow (*Zonotrichia leucophrys*) but configurable for other species. The project is in early development — many source files (`Chirplet.jl`, `pipeline.jl`) are stubs.
+Chirplet is a Julia package for acquiring and managing bird song recordings from xeno-canto. Currently focused on White-crowned Sparrow (*Zonotrichia leucophrys*) but configurable for other species. The project uses a 4-layer architecture separating domain logic, services, workflows, and CLI wiring.
 
 ## Development Commands
 
@@ -27,25 +27,56 @@ No `Project.toml` exists yet — one needs to be created before the package can 
 
 ## Architecture
 
-**Config layer** (`src/config.jl`, `config/default.toml`): `ChirpletConfig` is a `@kwdef` struct holding all settings — paths, API params, species targeting, quality filtering, download options. Config is loaded from TOML. The xeno-canto API key can also come from `XENOCANTO_API_KEY` env var.
+Four layers with a strict dependency graph:
 
-**Type system** (`src/types.jl`): Domain types built on enums and structs:
-- `QualityRating` (A–E) with ordering where A is best (lower Int = higher quality). `meets_quality` checks against a minimum.
-- `SoundType`, `DataSource` enums
-- `GeoCoord` value type, `RecordingMeta` / `Recording` entities (UUID-keyed)
-- `RecordingFilter` for query-time filtering
+```
+Domain  <--  Services  <--  scripts/ (CLI)
+  ^                             |
+  |                             v
+  +--------- Workflows  <------+
+```
 
-**Storage** (`src/io/store.jl`): SQLite-backed recording store with a `recordings` table. Key operations: `open_store`, `close_store`, `count_recordings`, `query_recordings`.
+- **Domain**: stdlib only (Dates, UUIDs)
+- **Services**: Domain + IO packages (SQLite, HTTP, JSON3)
+- **Workflows**: Domain only — IO is injected via function arguments
+- **Scripts**: all three layers, wires them together
 
-**Acquisition** (`src/aquisition/client.jl`): xeno-canto API client with `RateLimiter` for respecting rate limits.
+### Domain layer (`src/domain/`)
 
-**Pipeline** (`src/pipeline.jl`): Stub for a stage-based pipeline system. `AcquisitionStage` is pushed onto a `Pipeline` and executed via `run_pipeline`.
+Pure domain types with no IO dependencies.
 
-**Entry point** (`scripts/acquire.jl`): CLI script that wires config → pipeline → store → summary stats.
+- `types.jl` — Enums (`QualityRating`, `SoundType`, `DataSource`), value types (`GeoCoord`, `Species`), entities (`RecordingMeta`, `Recording`). `RecordingMeta` has no url/audio_url fields; `Recording` uses `provenance::Dict{String,String}` for source-specific metadata.
+- `filters.jl` — `RecordingFilter` @kwdef struct + `matches(filter, meta)::Bool` pure function.
+- `domain.jl` — Module wrapper, exports all domain types.
+
+### Services layer (`src/services/`)
+
+IO-bound services that depend on Domain.
+
+- `store/schema.jl` — `SCHEMA_SQL` constant with `provenance_json TEXT` column (no url/audio_url columns).
+- `store/store.jl` — `StoreConfig` (just `db_path`), `Store` struct, `open_store`, `close_store`, `save_recording`, `count_recordings`, `query_recordings` (accepts `RecordingFilter` for SQL WHERE clauses).
+- `aquisition/client.jl` — `XenoCantoConfig` struct, `RateLimiter`, stub functions (`throttle!`, `build_query`, `fetch_page`, `parse_recording`, `fetch_all_recordings`).
+- `services.jl` — Module wrapper using Domain + IO packages.
+
+### Workflows layer (`src/workflows/`)
+
+Pure orchestration with no IO imports. IO is injected via function arguments.
+
+- `acquisition_workflow.jl` — `acquire_recordings(; fetch_page, save_recording, filter, species, max_pages)` with function injection. Returns `AcquisitionResult` summary struct.
+- `workflows.jl` — Module wrapper using Domain only.
+
+### Config (`src/config.jl`)
+
+Just `load_toml(path) -> Dict`. No config struct — scripts read TOML and construct per-service configs directly.
+
+### Entry point (`scripts/acquire.jl`)
+
+CLI script that parses args, calls `load_toml`, constructs `StoreConfig`/`XenoCantoConfig`/`RecordingFilter`/`Species` from TOML sections, creates closures over service functions, and passes them to `acquire_recordings` workflow.
 
 ## Conventions
 
-- Note the typo in directory name: `src/aquisition/` (not `acquisition`)
+- Note the typo in directory name: `src/services/aquisition/` (not `acquisition`) — preserved intentionally
 - Quality ordering is inverted: `QA` has `Int` value 0 and is *best*, so `isless` uses `>` to sort A above E
-- `RecordingFilter` is constructed from `ChirpletConfig` (forward declaration exists, implementation pending)
+- `RecordingFilter` is constructed directly in scripts from TOML values (no config-struct constructor)
+- Provenance (url, audio_url, etc.) stored as JSON in `provenance_json` column, not as separate columns
 - Data stored under `data/` (raw, processed, cache, SQLite DB) — this directory is not committed
