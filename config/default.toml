@@ -8,7 +8,7 @@ raw_dir = "data/raw"
 processed_dir = "data/processed"
 cache_dir = "data/cache"
 [api]
-xc_base_url = "https://xeno-canto.org/api/2/recordings"
+xc_base_url = "https://xeno-canto.org/api/3/recordings"
 xc_api_key = ""                                         # or set XENOCANTO_API_KEY env var
 xc_rate_limit = 1000
 xc_request_delay = 3.6                                  # seconds between requests

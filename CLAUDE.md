@@ -23,7 +23,7 @@ julia --project=. scripts/acquire.jl --subspecies nuttalli --country "United Sta
 julia --project=. scripts/acquire.jl --max-pages 1
 ```
 
-No `Project.toml` exists yet — one needs to be created before the package can be loaded or tested. Julia version is 1.12.4.
+Requires a xeno-canto API key set via `XENOCANTO_API_KEY` env var. Julia version is 1.12.4.
 
 ## Architecture
 
@@ -55,7 +55,7 @@ IO-bound services that depend on Domain.
 
 - `store/schema.jl` — `SCHEMA_SQL` constant with `provenance_json TEXT` column (no url/audio_url columns).
 - `store/store.jl` — `StoreConfig` (just `db_path`), `Store` struct, `open_store`, `close_store`, `save_recording`, `count_recordings`, `query_recordings` (accepts `RecordingFilter` for SQL WHERE clauses).
-- `aquisition/client.jl` — `XenoCantoConfig` struct, `RateLimiter`, stub functions (`throttle!`, `build_query`, `fetch_page`, `parse_recording`, `fetch_all_recordings`).
+- `aquisition/client.jl` — `XenoCantoConfig` struct, `RateLimiter`, xeno-canto API v3 client (`throttle!`, `build_query`, `fetch_page`, `parse_recording`, `fetch_all_recordings`).
 - `services.jl` — Module wrapper using Domain + IO packages.
 
 ### Workflows layer (`src/workflows/`)
@@ -80,3 +80,5 @@ CLI script that parses args, calls `load_toml`, constructs `StoreConfig`/`XenoCa
 - `RecordingFilter` is constructed directly in scripts from TOML values (no config-struct constructor)
 - Provenance (url, audio_url, etc.) stored as JSON in `provenance_json` column, not as separate columns
 - Data stored under `data/` (raw, processed, cache, SQLite DB) — this directory is not committed
+- xeno-canto API v3 requires an API key and tag-based queries (e.g., `gen:"Zonotrichia" sp:"leucophrys"`) — free-text queries from v2 no longer work
+- v3 uses `lon` field instead of v2's `lng` for longitude

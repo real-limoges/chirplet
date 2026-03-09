@@ -242,6 +242,43 @@ using Dates
         end
     end
 
+    @testset "throttle!" begin
+        limiter = RateLimiter(0.1)
+
+        # First call should not delay (last_request is 0.0)
+        t0 = time()
+        throttle!(limiter)
+        @test time() - t0 < 0.05
+
+        # Second call should delay ~0.1s
+        t1 = time()
+        throttle!(limiter)
+        elapsed = time() - t1
+        @test elapsed >= 0.08  # allow small tolerance
+
+        # After waiting long enough, no delay
+        sleep(0.15)
+        t2 = time()
+        throttle!(limiter)
+        @test time() - t2 < 0.05
+    end
+
+    @testset "build_query" begin
+        cfg = XenoCantoConfig()
+        sp = Species(genus="Zonotrichia", species="leucophrys")
+        q = build_query(sp, cfg)
+        @test q == "gen:\"Zonotrichia\" sp:\"leucophrys\""
+
+        sp2 = Species(genus="Melospiza", species="melodia", subspecies="melodia")
+        q2 = build_query(sp2, cfg)
+        @test q2 == "gen:\"Melospiza\" sp:\"melodia\" ssp:\"melodia\""
+
+        # No subspecies → no ssp tag
+        sp3 = Species(genus="Melospiza", species="melodia")
+        q3 = build_query(sp3, cfg)
+        @test !contains(q3, "ssp:")
+    end
+
     @testset "load_toml" begin
         path = tempname() * ".toml"
         try
