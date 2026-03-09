@@ -27,5 +27,14 @@ Manifest*.toml
 LocalPreferences.toml
 JuliaLocalPreferences.toml
 
+# Docs
 /docs/
+
+# IDE
 .idea/
+
+# Data directories
+pipeline/data/
+
+# Rust build artifacts
+gamlss-rs/target/
