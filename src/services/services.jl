@@ -1,7 +1,7 @@
 module Services
 
 using ..Domain
-using SQLite, DBInterface, DataFrames, JSON3, Dates, UUIDs
+using SQLite, DBInterface, DataFrames, HTTP, JSON3, Dates, UUIDs
 
 include("store/schema.jl")
 include("store/store.jl")
