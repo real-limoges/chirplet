@@ -1,25 +1,20 @@
 # Chirplet
 
-A bird dialect visualization system, part of [Fugue](https://github.com/real-limoges). Maps geographic variation in bird song — starting with White-crowned Sparrow (*Zonotrichia leucophrys*) — by fitting generalized additive models to acoustic features and rendering dialect boundaries in the browser.
+A panel of [Fugue](https://github.com/real-limoges), a website about emergent things. Chirplet renders the geographic emergence of song dialects in **White-crowned Sparrow** (*Zonotrichia leucophrys*) as a continuous, audible gradient field — boundaries are derived as regions where the song is changing fastest, not as discrete partitions.
 
 ## Components
 
-This monorepo contains:
+This repo contains the Julia code for the offline pipeline and the Cloud Run prediction API: acquisition from xeno-canto, chirplet decomposition of audio into atoms, and a spatial model over atom distributions. A separate Phoenix application ([fugue-web](https://github.com/real-limoges)) serves the web UI and calls Chirplet over HTTP.
 
-- **`pipeline/`** — Julia data pipeline: acquires recordings from xeno-canto, extracts acoustic features, fits spatial GAMs, detects dialect boundaries
-- **`gamlss-rs/`** — Rust GAMLSS library compiled to WASM for in-browser GAM prediction (planned)
-
-A separate Phoenix application serves the web UI and calls the pipeline as an API service.
-
-See `docs/architecture.md` for the full system design (local only, not committed).
+See [`docs/vision.md`](docs/vision.md) for the design intent and [`docs/architecture.md`](docs/architecture.md) for the system design.
 
 ## Status
 
 - Acquisition pipeline: **functional** — metadata fetching from xeno-canto API v3 into SQLite
-- Audio download + DSP: planned
-- GAM fitting + boundary detection: planned
-- gamlss-rs WASM: planned
-- Phoenix integration: planned (separate repo)
+- Audio download: scaffolded; not yet exercised at scale
+- Chirplet decomposition (DSP): planned
+- Spatial fit + gradient field: planned
+- Cloud Run API service: planned
 
 ## Prerequisites
 

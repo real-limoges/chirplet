@@ -33,9 +33,9 @@ function acquire_recordings(;
             pages_fetched = page,
         )
 
-        for meta in recordings
+        for (meta, provenance) in recordings
             if matches(filter, meta)
-                rec = Recording(meta)
+                rec = Recording(meta; provenance=provenance)
                 save_recording(rec)
                 result = AcquisitionResult(
                     total_fetched = result.total_fetched,
