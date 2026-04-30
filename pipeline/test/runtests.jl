@@ -157,23 +157,18 @@ using Dates
         sp = Species(genus="Zonotrichia", species="leucophrys", subspecies="nuttalli")
 
         # Mock data: 2 pages, 3 recordings each
-        page1 = [
-            RecordingMeta(source=XenoCanto, source_id="1", species=sp,
-                coord=GeoCoord(0.0, 0.0), quality=QA, sound_type=Song),
-            RecordingMeta(source=XenoCanto, source_id="2", species=sp,
-                coord=GeoCoord(0.0, 0.0), quality=QD, sound_type=Song),  # fails quality
-            RecordingMeta(source=XenoCanto, source_id="3", species=sp,
-                coord=GeoCoord(0.0, 0.0), quality=QB, sound_type=Call),  # fails sound_type
-        ]
-        page2 = [
-            RecordingMeta(source=XenoCanto, source_id="4", species=sp,
-                coord=GeoCoord(0.0, 0.0), quality=QB, sound_type=Song),
-        ]
+        mk(id, q, st) = (
+            RecordingMeta(source=XenoCanto, source_id=id, species=sp,
+                coord=GeoCoord(0.0, 0.0), quality=q, sound_type=st),
+            Dict("url" => "https://xc/$id"),
+        )
+        page1 = [mk("1", QA, Song), mk("2", QD, Song), mk("3", QB, Call)]
+        page2 = [mk("4", QB, Song)]
 
         pages = Dict(1 => page1, 2 => page2)
         saved = Recording[]
 
-        mock_fetch = (species, page) -> (get(pages, page, RecordingMeta[]), 2)
+        mock_fetch = (species, page) -> (get(pages, page, Tuple{RecordingMeta,Dict{String,String}}[]), 2)
         mock_save = (rec) -> push!(saved, rec)
 
         filter = RecordingFilter(min_quality=QC, sound_types=[Song])

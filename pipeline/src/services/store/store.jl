@@ -20,7 +20,7 @@ end
 function save_recording(store::Store, rec::Recording)
     m = rec.meta
     sql = """
-    INSERT OR IGNORE INTO recordings
+    INSERT INTO recordings
         (id, source, source_id, genus, species, subspecies, common_name,
          lat, lng, elev_m, quality, sound_type, date, time,
          country, location, recordist, license,
@@ -31,6 +31,26 @@ function save_recording(store::Store, rec::Recording)
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?)
+    ON CONFLICT(source, source_id) DO UPDATE SET
+        genus           = excluded.genus,
+        species         = excluded.species,
+        subspecies      = excluded.subspecies,
+        common_name     = excluded.common_name,
+        lat             = excluded.lat,
+        lng             = excluded.lng,
+        elev_m          = excluded.elev_m,
+        quality         = excluded.quality,
+        sound_type      = excluded.sound_type,
+        date            = excluded.date,
+        time            = excluded.time,
+        country         = excluded.country,
+        location        = excluded.location,
+        recordist       = excluded.recordist,
+        license         = excluded.license,
+        duration_s      = excluded.duration_s,
+        sample_rate     = excluded.sample_rate,
+        remarks         = excluded.remarks,
+        provenance_json = excluded.provenance_json
     """
 
     coord_lat = m.coord !== nothing ? m.coord.lat : missing
@@ -69,6 +89,34 @@ end
 function count_recordings(store::Store)
     result = DBInterface.execute(store.db, "SELECT COUNT(*) AS n FROM recordings")
     first(result).n
+end
+
+function pending_downloads(store::Store)
+    sql = "SELECT source, source_id, provenance_json FROM recordings WHERE downloaded = 0"
+    df = DBInterface.execute(store.db, sql) |> DataFrame
+    pending = NamedTuple{(:source, :source_id, :audio_url, :audio_filename),
+                         Tuple{String,String,String,String}}[]
+    for row in eachrow(df)
+        prov = JSON3.read(row.provenance_json)
+        url = String(get(prov, :audio_url, ""))
+        isempty(url) && continue
+        fname = String(get(prov, :audio_filename, ""))
+        push!(pending, (
+            source = row.source,
+            source_id = row.source_id,
+            audio_url = url,
+            audio_filename = fname,
+        ))
+    end
+    pending
+end
+
+function mark_downloaded!(store::Store, source::String, source_id::String, audio_path::String)
+    DBInterface.execute(
+        store.db,
+        "UPDATE recordings SET audio_path = ?, downloaded = 1 WHERE source = ? AND source_id = ?",
+        [audio_path, source, source_id],
+    )
 end
 
 function query_recordings(store::Store; filter::Union{RecordingFilter,Nothing}=nothing)

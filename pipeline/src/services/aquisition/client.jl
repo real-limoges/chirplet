@@ -1,7 +1,6 @@
 Base.@kwdef struct XenoCantoConfig
     base_url::String = "https://xeno-canto.org/api/3/recordings"
     api_key::String = ""
-    rate_limit::Int = 1000
     request_delay::Float64 = 3.6
 end
 
@@ -28,6 +27,7 @@ function build_query(species::Species, cfg::XenoCantoConfig)
 end
 
 function fetch_page(cfg::XenoCantoConfig, limiter::RateLimiter, query::String, page::Int)
+    throttle!(limiter)
     params = "query=$(HTTP.URIs.escapeuri(query))&page=$page"
     if !isempty(cfg.api_key)
         params *= "&key=$(HTTP.URIs.escapeuri(cfg.api_key))"
@@ -39,7 +39,7 @@ function fetch_page(cfg::XenoCantoConfig, limiter::RateLimiter, query::String, p
     total_pages = body[:numPages]
     raw_recordings = body[:recordings]
 
-    recordings = RecordingMeta[]
+    recordings = Tuple{RecordingMeta,Dict{String,String}}[]
     for rec in raw_recordings
         try
             push!(recordings, parse_recording(rec))
@@ -49,6 +49,22 @@ function fetch_page(cfg::XenoCantoConfig, limiter::RateLimiter, query::String, p
     end
 
     (recordings, total_pages)
+end
+
+function download_audio_file(url::String, dest_path::String)
+    mkpath(dirname(dest_path))
+    tmp_path = dest_path * ".tmp"
+    try
+        resp = HTTP.get(url)
+        open(tmp_path, "w") do io
+            write(io, resp.body)
+        end
+        mv(tmp_path, dest_path; force=true)
+    catch
+        isfile(tmp_path) && rm(tmp_path; force=true)
+        rethrow()
+    end
+    dest_path
 end
 
 function _parse_duration(s::AbstractString)::Union{Float64,Nothing}
@@ -61,7 +77,7 @@ function _parse_duration(s::AbstractString)::Union{Float64,Nothing}
     mins * 60.0 + secs
 end
 
-function parse_recording(data)::RecordingMeta
+function parse_recording(data)::Tuple{RecordingMeta,Dict{String,String}}
     lat_str = string(get(data, :lat, ""))
     lng_str = string(get(data, :lon, get(data, :lng, "")))
     lat = tryparse(Float64, lat_str)
@@ -90,7 +106,7 @@ function parse_recording(data)::RecordingMeta
     smp_str = string(get(data, :smp, ""))
     sample_rate = tryparse(Int, smp_str)
 
-    RecordingMeta(
+    meta = RecordingMeta(
         source = XenoCanto,
         source_id = string(get(data, :id, "")),
         species = species,
@@ -107,26 +123,16 @@ function parse_recording(data)::RecordingMeta
         sample_rate = sample_rate,
         remarks = string(get(data, :rmk, "")),
     )
-end
 
-function fetch_all_recordings(cfg::XenoCantoConfig, species::Species; max_pages::Union{Int,Nothing}=nothing)
-    limiter = RateLimiter(cfg.request_delay)
-    query = build_query(species, cfg)
-    all_recordings = RecordingMeta[]
-    page = 1
-    total_pages = 1
-
-    while page <= total_pages
-        if max_pages !== nothing && page > max_pages
-            break
-        end
-
-        throttle!(limiter)
-        recordings, total_pages = fetch_page(cfg, limiter, query, page)
-        append!(all_recordings, recordings)
-        @info "Fetched page $page/$total_pages — $(length(recordings)) recordings"
-        page += 1
+    provenance = Dict{String,String}()
+    for (api_key, prov_key) in (
+        (:url, "url"),
+        (:file, "audio_url"),
+        (Symbol("file-name"), "audio_filename"),
+    )
+        v = string(get(data, api_key, ""))
+        isempty(v) || (provenance[prov_key] = v)
     end
 
-    all_recordings
+    (meta, provenance)
 end

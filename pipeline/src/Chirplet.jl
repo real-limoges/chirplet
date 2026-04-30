@@ -18,10 +18,12 @@ export GeoCoord, Species, RecordingMeta, Recording, RecordingFilter, matches
 
 # Re-export Services
 export StoreConfig, Store, open_store, close_store, save_recording, count_recordings, query_recordings
-export XenoCantoConfig, RateLimiter, throttle!, build_query, fetch_page, parse_recording, fetch_all_recordings
+export pending_downloads, mark_downloaded!
+export XenoCantoConfig, RateLimiter, throttle!, build_query, fetch_page, parse_recording, download_audio_file
 
 # Re-export Workflows
 export AcquisitionResult, acquire_recordings
+export DownloadResult, download_recordings
 
 # Re-export config
 export load_toml
