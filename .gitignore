@@ -36,4 +36,11 @@ pipeline/data/
 CLAUDE.md
 **/CLAUDE.md
 
-docs/
+# docs/ is a private notes tree; only docs/reference/ is committed
+docs/*
+!docs/reference/
+
+# Jupyter notebook artifacts (resynthesis output from decomposition_spike.ipynb)
+pipeline/notebooks/_resynth.wav
+
+.DS_Store

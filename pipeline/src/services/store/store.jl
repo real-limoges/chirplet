@@ -99,7 +99,10 @@ function pending_downloads(store::Store)
     for row in eachrow(df)
         prov = JSON3.read(row.provenance_json)
         url = String(get(prov, :audio_url, ""))
-        isempty(url) && continue
+        if isempty(url)
+            @warn "Skipping download of $(row.source_id): no audio_url in provenance" row.source
+            continue
+        end
         fname = String(get(prov, :audio_filename, ""))
         push!(pending, (
             source = row.source,

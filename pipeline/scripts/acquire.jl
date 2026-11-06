@@ -2,9 +2,9 @@
 #
 # Acquire White-crowned Sparrow recordings from xeno-canto.
 #
-# Usage:
-#   julia --project=. scripts/acquire.jl                  # full run
-#   julia --project=. scripts/acquire.jl --max-pages 1    # smoke test
+# Usage, from the repository root:
+#   julia --project=pipeline pipeline/scripts/acquire.jl                  # full run
+#   julia --project=pipeline pipeline/scripts/acquire.jl --max-pages 1    # smoke test
 #
 # Edit pipeline/config/default.toml to change species, filters, or paths.
 
@@ -30,8 +30,8 @@ function main(args=ARGS)
     sp_cfg = toml["species"]
     filt = toml["filtering"]
 
-    api_key = get(ENV, "XENOCANTO_API_KEY", get(api, "xc_api_key", ""))
-    isempty(api_key) && error("XENOCANTO_API_KEY env var is not set (and no xc_api_key in config). " *
+    api_key = get(ENV, "XENOCANTO_API_KEY", "")
+    isempty(api_key) && error("XENOCANTO_API_KEY env var is not set. " *
                               "Get a key at https://xeno-canto.org/account.")
 
     store_cfg = StoreConfig(db_path = resolve(paths["db_path"]))
@@ -73,30 +73,26 @@ function main(args=ARGS)
         max_pages = max_pages,
     )
 
-    # Summary
     println("\n── Summary ──")
     println("  ", result)
 
-    # Quick stats
     total = count_recordings(store)
     println("\n  Total recordings in store: $total")
 
     df = query_recordings(store; filter=RecordingFilter(require_coords=true))
-    println("  With coordinates: $(nrow(df))")
+    println("  With coordinates, quality C or better, song: $(nrow(df))")
 
     if nrow(df) > 0
         println("  Lat range: $(minimum(df.lat)) to $(maximum(df.lat))")
         println("  Lng range: $(minimum(df.lng)) to $(maximum(df.lng))")
 
-        # Subspecies breakdown
         ssp_counts = combine(groupby(df, :subspecies), nrow => :count)
         println("  Subspecies:")
         for row in eachrow(ssp_counts)
-            label = isempty(row.subspecies) || ismissing(row.subspecies) ? "(unspecified)" : row.subspecies
+            label = ismissing(row.subspecies) || isempty(row.subspecies) ? "(unspecified)" : row.subspecies
             println("    $label: $(row.count)")
         end
 
-        # Quality breakdown
         q_counts = combine(groupby(df, :quality), nrow => :count)
         println("  Quality:")
         for row in eachrow(q_counts)
