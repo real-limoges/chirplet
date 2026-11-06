@@ -84,7 +84,6 @@ function parse_recording(data)::Tuple{RecordingMeta,Dict{String,String}}
     lng = tryparse(Float64, lng_str)
     coord = (lat !== nothing && lng !== nothing) ? GeoCoord(lng, lat) : nothing
 
-    # Parse subspecies from the species name (ssp field) or empty
     subspecies = string(get(data, :ssp, ""))
 
     species = Species(
@@ -94,15 +93,12 @@ function parse_recording(data)::Tuple{RecordingMeta,Dict{String,String}}
         common_name = string(get(data, :en, "")),
     )
 
-    # Parse date
     date_str = string(get(data, :date, ""))
     date = isempty(date_str) ? nothing : tryparse(Date, date_str)
 
-    # Parse time
     time_str = string(get(data, :time, ""))
     rec_time = isempty(time_str) ? nothing : tryparse(Time, time_str)
 
-    # Parse sample rate
     smp_str = string(get(data, :smp, ""))
     sample_rate = tryparse(Int, smp_str)
 

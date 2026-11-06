@@ -2,8 +2,8 @@
 #
 # Download audio files for all recordings in the store that don't have them yet.
 #
-# Usage:
-#   julia --project=. scripts/download.jl
+# Usage, from the repository root:
+#   julia --project=pipeline pipeline/scripts/download.jl
 #
 # Resumable: only fetches rows where downloaded = 0. Files already on disk
 # are marked as downloaded without re-fetching.

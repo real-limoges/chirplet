@@ -1,4 +1,4 @@
-# ----- Sum Types ----- #
+# ----- Enumerations ----- #
 
 @enum QualityRating QA QB QC QD QE QUnknown
 function parse_quality(s::AbstractString)
@@ -9,19 +9,19 @@ function parse_quality(s::AbstractString)
     s == "D" ? QD :
     s == "E" ? QE : QUnknown
 end
-Base.isless(a::QualityRating, b::QualityRating) = Int(a) > Int(b)
 meets_quality(rating::QualityRating, minimum::QualityRating) = Int(rating) <= Int(minimum)
 
 
 @enum SoundType Song Call Alarm Flight Drumming Dawn Other UnknownType
 function parse_soundtype(s::AbstractString)
     s = lowercase(strip(s))
+    isempty(s) ? UnknownType :
+    contains(s, "dawn") ? Dawn :
     contains(s, "song") ? Song :
     contains(s, "call") ? Call :
     contains(s, "alarm") ? Alarm :
     contains(s, "flight") ? Flight :
-    contains(s, "drumming") ? Drumming :
-    contains(s, "dawn") ? Dawn : Other
+    contains(s, "drumming") ? Drumming : Other
 end
 
 @enum DataSource XenoCanto MacaulayLibrary LocalFile

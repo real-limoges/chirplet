@@ -10,9 +10,10 @@ using Dates
         @test parse_quality(" C ") == QC
         @test parse_quality("xyz") == QUnknown
 
-        # QA (0) is best, so QA > QB in domain ordering
-        @test QA > QB
-        @test QB > QC
+        # Ordering is declaration order, best first.
+        # "Better than" is meets_quality, not <.
+        @test sort([QC, QA, QB]) == [QA, QB, QC]
+        @test minimum([QC, QA, QB]) == QA
 
         @test meets_quality(QA, QC) == true
         @test meets_quality(QC, QC) == true
@@ -28,6 +29,13 @@ using Dates
         @test parse_soundtype("drumming") == Drumming
         @test parse_soundtype("dawn") == Dawn
         @test parse_soundtype("unknown") == Other
+
+        # "dawn song" must not be swallowed by "song",
+        # and an empty field is unknown rather than Other.
+        @test parse_soundtype("dawn song") == Dawn
+        @test parse_soundtype("Dawn Song") == Dawn
+        @test parse_soundtype("") == UnknownType
+        @test parse_soundtype("  ") == UnknownType
     end
 
     @testset "GeoCoord" begin
@@ -230,6 +238,31 @@ using Dates
             filter_none = RecordingFilter(min_quality=QC, sound_types=[Call])
             df3 = query_recordings(store; filter=filter_none)
             @test size(df3, 1) == 0
+
+            close_store(store)
+        finally
+            rm(db_path; force=true)
+        end
+    end
+
+    @testset "pending_downloads warns on missing audio_url" begin
+        db_path = tempname() * ".sqlite"
+        try
+            store = open_store(StoreConfig(db_path=db_path))
+            sp = Species(genus="Zonotrichia", species="leucophrys")
+            mkrec(id, prov) = Recording(
+                RecordingMeta(source=XenoCanto, source_id=id, species=sp,
+                              quality=QA, sound_type=Song);
+                provenance=prov,
+            )
+            save_recording(store, mkrec("XC1", Dict(
+                "audio_url" => "https://xeno-canto.org/1/download",
+                "audio_filename" => "XC1.mp3",
+            )))
+            save_recording(store, mkrec("XC2", Dict("url" => "https://xeno-canto.org/2")))
+
+            pending = @test_logs (:warn, r"XC2") pending_downloads(store)
+            @test [p.source_id for p in pending] == ["XC1"]
 
             close_store(store)
         finally
