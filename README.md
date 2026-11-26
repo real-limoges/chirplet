@@ -5,9 +5,9 @@ Chirplet renders the geographic emergence of song dialects in **White-crowned Sp
 ## Components
 
 This repo contains the Julia code for the offline pipeline and the Cloud Run prediction API: acquisition from xeno-canto, chirplet decomposition of audio into atoms, and a spatial model over atom distributions.
-A separate web front end (most likely Phoenix LiveView) serves the UI and calls Chirplet over HTTP.
+The UI is a page in [Fugue](https://github.com/real-limoges/fugue), the Phoenix LiveView app behind realcomplex.systems, whose browser code calls Chirplet over HTTP.
 
-The work runs as five stages: acquisition, audio download, chirplet decomposition, spatial fit, and the prediction API.
+The work runs as six stages: acquisition, audio download, chirplet decomposition, spatial fit, the prediction API, and the Fugue page.
 Each stage has one exit criterion, and the next does not start until it is met.
 
 ## Status

@@ -1,6 +1,6 @@
 # Chirplet Architecture
 
-Chirplet renders the geographic emergence of White-crowned Sparrow song dialects as a continuous, audible gradient field, served to a separate web front end.
+Chirplet renders the geographic emergence of White-crowned Sparrow song dialects as a continuous, audible gradient field, drawn by a page in Fugue, the separate Phoenix LiveView app behind realcomplex.systems.
 This page describes how the pieces fit together on `main`: what runs where, where data lives, and which dependencies cross which boundaries.
 
 ## System Overview
@@ -13,13 +13,13 @@ flowchart TB
   end
   MODEL[("fitted model")]
   API["Chirplet API<br/>(Julia, Cloud Run)"]
-  FE["front end<br/>(separate app)"]
+  FE["Fugue<br/>/lab/chirplet"]
   USER["Browser<br/>map + audio"]
   XC -- HTTPS --> ACQ
   FIT -- writes --> MODEL
   API -- "loads at startup" --> MODEL
-  USER -- "HTTPS / JSON" --> FE
-  FE -- "HTTPS / JSON" --> API
+  USER -- "HTML" --> FE
+  USER -- "HTTPS / JSON" --> API
 ```
 
 Two artifacts ship from this repo: an offline pipeline that produces a fitted model, and a Cloud Run service that loads the model and answers prediction queries.
@@ -28,7 +28,7 @@ Both are Julia.
 | Repo | Language | Role |
 |---|---|---|
 | **chirplet** (this) | Julia | Acquisition, chirplet decomposition, spatial fitting; ships an offline pipeline and a Cloud Run prediction API |
-| Front end (separate, host undecided) | Most likely Phoenix LiveView | Web UI; serves the map and audio playback, calls the Chirplet API |
+| [**fugue**](https://github.com/real-limoges/fugue) | Elixir (Phoenix LiveView) | Serves the `/lab/chirplet` page; its browser code draws the map, plays the audio, and calls the Chirplet API directly |
 | [**glissando**](https://github.com/real-limoges/glissando) | Rust | GAMLSS library; a sibling project, **not on Chirplet's critical path**, since prediction is server-side in Julia |
 
 Chirplet does not render UI or know about the map.
@@ -193,9 +193,10 @@ Boundaries are derived as regions of high gradient magnitude rather than fit dir
 The exact parameterization of the atom distribution is still open.
 
 Serving is a Julia HTTP service deployed to Cloud Run.
-The fitted model is loaded into the service at startup and answers prediction queries from the front end.
+The fitted model is loaded into the service at startup and answers prediction queries from the browser, on a page Fugue serves.
+The service is public and read-only, with CORS limited to Fugue's origins; Fugue's server never calls it.
 Live re-fitting at request time is not in scope; refits are produced offline by the pipeline and ship by rebuilding the Cloud Run image, since the model is baked into it.
-The consumer of the HTTP request and response shape is the front end, so a change to that shape is a change to its contract.
+The consumer of the HTTP request and response shape is Fugue's browser code, so a change to that shape is a change to its contract.
 
 ## Testing
 
